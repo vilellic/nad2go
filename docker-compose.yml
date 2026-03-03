@@ -1,0 +1,14 @@
+services:
+  nad2go:
+    container_name: nad2go
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Helsinki
+      - SERIAL_PORT=/dev/ttyUSB0
+    ports:
+      - "8086:8080"
+    devices:
+      - "/dev/cu.PL2303G-USBtoUART2140:/dev/ttyUSB0"
