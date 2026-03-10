@@ -8,7 +8,6 @@ Currently includes IR command mappings for the NAD C725BEE, but the RS232 protoc
 
 - **Full RS232 control** — power, source, mute, speakers, tuner, sleep, tone defeat, and more
 - **IR command passthrough** — send any remote control command via `Main.IR` using plain-text names (e.g. `volume_up`) or decimal codes
-- **Fire-and-forget mode** — optional `nowait` parameter returns instantly without waiting for serial response, ideal for volume control
 - **Auto-reconnect** — recovers gracefully if the serial connection drops
 - **Home Assistant ready** — simple GET endpoints work directly with `rest_command`
 
@@ -36,16 +35,10 @@ Send a command to the amplifier.
 | `cmd`    | yes      | RS232 command: `Main.Power`, `Main.IR`, `Main.Source`, `Main.Model`… |
 | `op`     | yes      | Operator: `=` (set), `+` (increment), `-` (decrement), `?` (query)  |
 | `value`  | no       | Value to set. For `Main.IR`, accepts plain-text names like `volume_up` |
-| `nowait` | no       | Set to `true` for fire-and-forget (returns immediately)              |
 
 **Response:**
 ```json
 {"command": "Main.Power=On", "response": "Main.Power=On"}
-```
-
-**With nowait:**
-```json
-{"command": "Main.IR=136", "response": "ok (nowait)"}
 ```
 
 ### GET /status
@@ -88,11 +81,11 @@ curl "http://localhost:8080/control?cmd=Main.Model&op=?"
 # Power on
 curl "http://localhost:8080/control?cmd=Main.Power&op==&value=On"
 
-# Volume up (fire-and-forget for speed)
-curl "http://localhost:8080/control?cmd=Main.IR&op==&value=volume_up&nowait=true"
+# Volume up
+curl "http://localhost:8080/control?cmd=Main.IR&op==&value=volume_up"
 
 # Volume down
-curl "http://localhost:8080/control?cmd=Main.IR&op==&value=volume_down&nowait=true"
+curl "http://localhost:8080/control?cmd=Main.IR&op==&value=volume_down"
 
 # Speaker A on via IR
 curl "http://localhost:8080/control?cmd=Main.IR&op==&value=speaker_a"
@@ -127,9 +120,9 @@ rest_command:
   nad_power_off:
     url: "http://nad2go:8080/control?cmd=Main.Power&op==&value=Off"
   nad_volume_up:
-    url: "http://nad2go:8080/control?cmd=Main.IR&op==&value=volume_up&nowait=true"
+    url: "http://nad2go:8080/control?cmd=Main.IR&op==&value=volume_up"
   nad_volume_down:
-    url: "http://nad2go:8080/control?cmd=Main.IR&op==&value=volume_down&nowait=true"
+    url: "http://nad2go:8080/control?cmd=Main.IR&op==&value=volume_down"
   nad_mute:
     url: "http://nad2go:8080/control?cmd=Main.Mute&op==&value=On"
   nad_unmute:

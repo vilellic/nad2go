@@ -1,0 +1,743 @@
+# =============================================================================
+# NAD C725BEE — Home Assistant Package
+# =============================================================================
+# Communicates with nad2go server at localhost:8099
+# Prefers RS232 direct commands over IR where possible
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Input Helpers — State Storage
+# -----------------------------------------------------------------------------
+
+input_boolean:
+  nad_power:
+    name: NAD Power
+    icon: mdi:power
+  nad_speaker_a:
+    name: NAD Speaker A
+    icon: mdi:speaker
+  nad_speaker_b:
+    name: NAD Speaker B
+    icon: mdi:speaker
+  nad_blend:
+    name: NAD FM Blend
+    icon: mdi:tune-vertical
+  nad_fm_mute:
+    name: NAD FM Mute
+    icon: mdi:volume-mute
+  nad_main_mute:
+    name: NAD Main Mute
+    icon: mdi:volume-off
+  nad_syncing:
+    name: NAD Syncing
+    icon: mdi:sync
+  nad_polling_enabled:
+    name: NAD Polling Enabled
+    icon: mdi:refresh-auto
+
+input_number:
+  nad_current_preset:
+    name: NAD Current Preset
+    icon: mdi:radio
+    min: 0
+    max: 30
+    step: 1
+    mode: box
+  nad_current_source:
+    name: NAD Current Source
+    icon: mdi:import
+    min: 1
+    max: 6
+    step: 1
+    mode: box
+
+input_text:
+  nad_tuner_frequency:
+    name: NAD Tuner Frequency
+    icon: mdi:sine-wave
+    max: 10
+  nad_rds_name:
+    name: NAD RDS Name
+    icon: mdi:radio-tower
+    max: 50
+  nad_rds_text:
+    name: NAD RDS Text
+    icon: mdi:text
+    max: 255
+  nad_current_source_name:
+    name: NAD Source Name
+    icon: mdi:audio-input-rca
+    max: 20
+
+# -----------------------------------------------------------------------------
+# REST Commands
+# -----------------------------------------------------------------------------
+
+rest_command:
+  # --- Power (RS232 direct + IR toggle) ---
+  nad_power_on:
+    url: "http://localhost:8099/control?cmd=Main.Power&op==&value=On"
+  nad_power_off:
+    url: "http://localhost:8099/control?cmd=Main.Power&op==&value=Off"
+  nad_power_toggle:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=power_toggle"
+
+  # --- Volume (IR only, no state) ---
+  nad_volume_up:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=volume_up"
+  nad_volume_down:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=volume_down"
+
+  # --- Main Mute (RS232 direct) ---
+  nad_mute:
+    url: "http://localhost:8099/control?cmd=Main.Mute&op==&value=On"
+  nad_unmute:
+    url: "http://localhost:8099/control?cmd=Main.Mute&op==&value=Off"
+
+  # --- Speakers (RS232 direct — replaces IR toggles) ---
+  nad_speaker_a_on:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerA&op==&value=On"
+  nad_speaker_a_off:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerA&op==&value=Off"
+  nad_speaker_b_on:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerB&op==&value=On"
+  nad_speaker_b_off:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerB&op==&value=Off"
+
+  # --- Source (RS232 direct — replaces IR) ---
+  nad_fm:
+    url: "http://localhost:8099/control?cmd=Main.Source&op==&value=3"
+  nad_aux:
+    url: "http://localhost:8099/control?cmd=Main.Source&op==&value=5"
+  nad_set_source:
+    url: "http://localhost:8099/control?cmd=Main.Source&op==&value={{ source }}"
+
+  # --- Preset (RS232 direct) ---
+  nad_preset_up:
+    url: "http://localhost:8099/control?cmd=Tuner.Preset&op=%2b"
+  nad_preset_down:
+    url: "http://localhost:8099/control?cmd=Tuner.Preset&op=-"
+  nad_set_preset:
+    url: "http://localhost:8099/control?cmd=Tuner.Preset&op==&value={{ preset }}"
+
+  # --- Search (IR only) ---
+  nad_search_up:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=search_up"
+  nad_search_down:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=search_down"
+
+  # --- Blend (IR toggle only) ---
+  nad_blend:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=blend"
+
+  # --- FM Mute (RS232 direct) ---
+  nad_set_fm_mute_on:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.Mute&op==&value=On"
+  nad_set_fm_mute_off:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.Mute&op==&value=Off"
+
+  # --- Tuner Mode (IR) ---
+  nad_tuner_mode:
+    url: "http://localhost:8099/control?cmd=Main.IR&op==&value=tuner_mode"
+
+  # --- Set Frequency (RS232, templated) ---
+  nad_set_frequency:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.Frequency&op==&value={{ value }}"
+
+  # --- Query commands (all RS232) ---
+  nad_query_power:
+    url: "http://localhost:8099/control?cmd=Main.Power&op=?"
+  nad_query_speaker_a:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerA&op=?"
+  nad_query_speaker_b:
+    url: "http://localhost:8099/control?cmd=Main.SpeakerB&op=?"
+  nad_query_main_mute:
+    url: "http://localhost:8099/control?cmd=Main.Mute&op=?"
+  nad_query_source:
+    url: "http://localhost:8099/control?cmd=Main.Source&op=?"
+  nad_query_fm_mute:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.Mute&op=?"
+  nad_query_preset:
+    url: "http://localhost:8099/control?cmd=Tuner.Preset&op=?"
+  nad_query_frequency:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.Frequency&op=?"
+  nad_query_rds_name:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.RDSName&op=?"
+  nad_query_rds_text:
+    url: "http://localhost:8099/control?cmd=Tuner.FM.RDSText&op=?"
+
+# -----------------------------------------------------------------------------
+# Scripts — Execute command + update state helpers
+# -----------------------------------------------------------------------------
+
+script:
+  # --- Toggle Power ---
+  nad_toggle_power:
+    alias: "NAD Toggle Power"
+    sequence:
+      - action: rest_command.nad_power_toggle
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_power
+
+  # --- Toggle Main Mute ---
+  nad_toggle_mute:
+    alias: "NAD Toggle Main Mute"
+    sequence:
+      - action: "rest_command.nad_{{ 'unmute' if is_state('input_boolean.nad_main_mute', 'on') else 'mute' }}"
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_main_mute
+
+  # --- Toggle Speaker A ---
+  nad_toggle_speaker_a:
+    alias: "NAD Toggle Speaker A"
+    sequence:
+      - action: "rest_command.nad_speaker_a_{{ 'off' if is_state('input_boolean.nad_speaker_a', 'on') else 'on' }}"
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_speaker_a
+
+  # --- Toggle Speaker B ---
+  nad_toggle_speaker_b:
+    alias: "NAD Toggle Speaker B"
+    sequence:
+      - action: "rest_command.nad_speaker_b_{{ 'off' if is_state('input_boolean.nad_speaker_b', 'on') else 'on' }}"
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_speaker_b
+
+  # --- Toggle Blend (IR toggle — parse response directly) ---
+  nad_toggle_blend:
+    alias: "NAD Toggle Blend"
+    sequence:
+      - action: rest_command.nad_blend
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_blend
+
+  # --- Toggle FM Mute ---
+  nad_toggle_fm_mute:
+    alias: "NAD Toggle FM Mute"
+    sequence:
+      - action: "rest_command.nad_set_fm_mute_{{ 'off' if is_state('input_boolean.nad_fm_mute', 'on') else 'on' }}"
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+
+  # --- Switch to FM ---
+  nad_switch_to_fm:
+    alias: "NAD Switch to FM"
+    sequence:
+      - action: rest_command.nad_fm
+        response_variable: rest_result
+      - action: automation.turn_off
+        target:
+          entity_id: automation.nad_set_source_from_input
+        data:
+          stop_actions: false
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_source
+        data:
+          value: 3
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_current_source_name
+        data:
+          value: "Radio"
+      - action: script.turn_on
+        target:
+          entity_id: script.nad_deferred_tuner_update          
+      - action: automation.turn_on
+        target:
+          entity_id: automation.nad_set_source_from_input
+
+  # --- Switch to Aux ---
+  nad_switch_to_aux:
+    alias: "NAD Switch to Aux"
+    sequence:
+      - action: script.nad_clear_rds
+      - action: rest_command.nad_aux
+        response_variable: rest_result
+      - action: automation.turn_off
+        target:
+          entity_id: automation.nad_set_source_from_input
+        data:
+          stop_actions: false
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_source
+        data:
+          value: 5
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_current_source_name
+        data:
+          value: "Aux"
+      - action: automation.turn_on
+        target:
+          entity_id: automation.nad_set_source_from_input
+
+  # --- Helper: Update RDS info ---
+  nad_update_tuner_info:
+    alias: "NAD Update Tuner Info"
+    mode: restart
+    sequence:
+      - action: rest_command.nad_query_rds_name
+        response_variable: rds_name_result
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_rds_name
+        data:
+          value: "{{ rds_name_result.content.response.split('=') | last }}"
+      - action: rest_command.nad_query_rds_text
+        response_variable: rds_text_result
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_rds_text
+        data:
+          value: "{{ rds_text_result.content.response.split('=') | last }}"
+
+  # --- Clear RDS fields (call before tuning changes) ---
+  nad_clear_rds:
+    alias: "NAD Clear RDS"
+    sequence:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_rds_name
+        data:
+          value: ""
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_rds_text
+        data:
+          value: ""
+
+  # --- Deferred tuner update (10s delay, restartable) ---
+  nad_deferred_tuner_update:
+    alias: "NAD Deferred Tuner Update"
+    mode: restart
+    sequence:
+      - delay:
+          seconds: 10
+      - action: script.nad_update_tuner_info
+
+  # --- Preset Up (sync — parses multi-line response) ---
+  nad_preset_up:
+    alias: "NAD Preset Up"
+    sequence:
+      - action: script.nad_clear_rds
+      - action: automation.turn_off
+        target:
+          entity_id:
+            - automation.nad_set_preset_from_input
+            - automation.nad_set_frequency_from_input
+        data:
+          stop_actions: false
+      - action: rest_command.nad_preset_up
+        response_variable: rest_result
+      - variables:
+          response_text: "{{ rest_result.content.response }}"
+      - variables:
+          preset_line: "{{ response_text.split('\\r') | select('match', 'Tuner.Preset=') | first | default('Tuner.Preset=None') }}"
+          freq_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Frequency=') | first | default('Tuner.FM.Frequency=0') }}"
+          mute_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Mute=') | first | default('Tuner.FM.Mute=Off') }}"
+          blend_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Blend=') | first | default('Tuner.FM.Blend=Off') }}"
+      - variables:
+          preset_raw: "{{ preset_line.split('=') | last }}"
+          freq_val: "{{ freq_line.split('=') | last }}"
+          mute_val: "{{ mute_line.split('=') | last }}"
+          blend_val: "{{ blend_line.split('=') | last }}"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_preset
+        data:
+          value: "{{ 0 if preset_raw == 'None' else preset_raw | int(0) }}"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_tuner_frequency
+        data:
+          value: "{{ freq_val }}"
+      - action: "input_boolean.turn_{{ 'on' if mute_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+      - action: "input_boolean.turn_{{ 'on' if blend_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_blend
+      - action: automation.turn_on
+        target:
+          entity_id:
+            - automation.nad_set_preset_from_input
+            - automation.nad_set_frequency_from_input
+      - action: script.turn_on
+        target:
+          entity_id: script.nad_deferred_tuner_update
+
+  # --- Preset Down (sync — parses multi-line response) ---
+  nad_preset_down:
+    alias: "NAD Preset Down"
+    sequence:
+      - action: script.nad_clear_rds
+      - action: automation.turn_off
+        target:
+          entity_id:
+            - automation.nad_set_preset_from_input
+            - automation.nad_set_frequency_from_input
+        data:
+          stop_actions: false
+      - action: rest_command.nad_preset_down
+        response_variable: rest_result
+      - variables:
+          response_text: "{{ rest_result.content.response }}"
+      - variables:
+          preset_line: "{{ response_text.split('\\r') | select('match', 'Tuner.Preset=') | first | default('Tuner.Preset=None') }}"
+          freq_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Frequency=') | first | default('Tuner.FM.Frequency=0') }}"
+          mute_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Mute=') | first | default('Tuner.FM.Mute=Off') }}"
+          blend_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Blend=') | first | default('Tuner.FM.Blend=Off') }}"
+      - variables:
+          preset_raw: "{{ preset_line.split('=') | last }}"
+          freq_val: "{{ freq_line.split('=') | last }}"
+          mute_val: "{{ mute_line.split('=') | last }}"
+          blend_val: "{{ blend_line.split('=') | last }}"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_preset
+        data:
+          value: "{{ 0 if preset_raw == 'None' else preset_raw | int(0) }}"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_tuner_frequency
+        data:
+          value: "{{ freq_val }}"
+      - action: "input_boolean.turn_{{ 'on' if mute_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+      - action: "input_boolean.turn_{{ 'on' if blend_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_blend
+      - action: automation.turn_on
+        target:
+          entity_id:
+            - automation.nad_set_preset_from_input
+            - automation.nad_set_frequency_from_input
+      - action: script.turn_on
+        target:
+          entity_id: script.nad_deferred_tuner_update
+
+  # --- Search Up (non-blocking) ---
+  nad_search_up:
+    alias: "NAD Search Up"
+    sequence:
+      - action: rest_command.nad_search_up
+
+  # --- Search Down (non-blocking) ---
+  nad_search_down:
+    alias: "NAD Search Down"
+    sequence:
+      - action: rest_command.nad_search_down
+
+  # --- Refresh All States ---
+  nad_refresh_all_states:
+    alias: "NAD Refresh All States"
+    mode: single
+    sequence:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.nad_syncing
+      # Power
+      - action: rest_command.nad_query_power
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_power
+      # Speaker A
+      - action: rest_command.nad_query_speaker_a
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_speaker_a
+      # Speaker B
+      - action: rest_command.nad_query_speaker_b
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_speaker_b
+      # Main Mute
+      - action: rest_command.nad_query_main_mute
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_main_mute
+      # FM Mute
+      - action: rest_command.nad_query_fm_mute
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+      # Source
+      - action: rest_command.nad_query_source
+        response_variable: rest_result
+      - variables:
+          source_num: "{{ rest_result.content.response.split('=') | last | int(1) }}"
+          source_map:
+            1: "CD"
+            2: "Tuner"
+            3: "Radio"
+            4: "Tape 1"
+            5: "Aux"
+            6: "Video 6"
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_source
+        data:
+          value: "{{ source_num }}"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_current_source_name
+        data:
+          value: "{{ source_map[source_num] | default('Unknown') }}"
+      # Tuner info (frequency, preset, RDS) — only when on tuner source
+      - if:
+          - condition: template
+            value_template: "{{ source_num | int == 3 }}"
+        then:
+          - action: rest_command.nad_query_frequency
+            response_variable: freq_result
+          - action: input_text.set_value
+            target:
+              entity_id: input_text.nad_tuner_frequency
+            data:
+              value: "{{ freq_result.content.response.split('=') | last }}"
+          - action: rest_command.nad_query_preset
+            response_variable: preset_result
+          - variables:
+              preset_raw: "{{ preset_result.content.response.split('=') | last }}"
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.nad_current_preset
+            data:
+              value: "{{ 0 if preset_raw == 'None' else preset_raw | int(0) }}"
+          - action: script.nad_update_tuner_info
+        else:
+          - action: script.nad_clear_rds
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.nad_syncing
+
+# -----------------------------------------------------------------------------
+# Automations — Bidirectional Control
+# -----------------------------------------------------------------------------
+
+automation:
+  # --- Set tuner frequency when input_text changes ---
+  - id: nad_set_frequency_from_input
+    alias: "NAD Set Frequency from Input"
+    triggers:
+      - trigger: state
+        entity_id: input_text.nad_tuner_frequency
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.from_state.state != trigger.to_state.state and trigger.to_state.state | float(0) >= 87.5 and trigger.to_state.state | float(0) <= 108.5 }}"
+      - condition: state
+        entity_id: input_boolean.nad_syncing
+        state: "off"
+    actions:
+      - action: script.nad_clear_rds
+      - action: rest_command.nad_set_frequency
+        response_variable: rest_result
+        data:
+          value: "{{ states('input_text.nad_tuner_frequency') }}"
+      - variables:
+          response_text: "{{ rest_result.content.response }}"
+      # Parse multi-line response: Tuner.Preset=X\rTuner.FM.Frequency=X\rTuner.FM.Mute=X\rTuner.FM.Blend=X
+      - variables:
+          preset_line: "{{ response_text.split('\\r') | select('match', 'Tuner.Preset=') | first | default('Tuner.Preset=None') }}"
+          mute_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Mute=') | first | default('Tuner.FM.Mute=Off') }}"
+          blend_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Blend=') | first | default('Tuner.FM.Blend=Off') }}"
+      - variables:
+          preset_raw: "{{ preset_line.split('=') | last }}"
+          mute_val: "{{ mute_line.split('=') | last }}"
+          blend_val: "{{ blend_line.split('=') | last }}"
+      # Update preset
+      - action: automation.turn_off
+        target:
+          entity_id: automation.nad_set_preset_from_input
+        data:
+          stop_actions: false
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.nad_current_preset
+        data:
+          value: "{{ 0 if preset_raw == 'None' else preset_raw | int(0) }}"
+      - action: automation.turn_on
+        target:
+          entity_id: automation.nad_set_preset_from_input
+      # Update FM Mute
+      - action: "input_boolean.turn_{{ 'on' if mute_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+      # Update Blend
+      - action: "input_boolean.turn_{{ 'on' if blend_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_blend
+      # Update RDS
+      - action: script.nad_deferred_tuner_update
+
+  # --- Set source when input_number changes ---
+  - id: nad_set_source_from_input
+    alias: "NAD Set Source from Input"
+    triggers:
+      - trigger: state
+        entity_id: input_number.nad_current_source
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+      - condition: state
+        entity_id: input_boolean.nad_syncing
+        state: "off"
+    actions:
+      - action: rest_command.nad_set_source
+        response_variable: rest_result
+        data:
+          source: "{{ states('input_number.nad_current_source') | int }}"
+      - variables:
+          source_num: "{{ states('input_number.nad_current_source') | int }}"
+          source_map:
+            1: "CD"
+            2: "Tuner"
+            3: "Radio"
+            4: "Tape 1"
+            5: "Aux"
+            6: "Video 6"
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_current_source_name
+        data:
+          value: "{{ source_map[source_num] | default('Unknown') }}"
+      # Clear RDS if switched away from tuner
+      - if:
+          - condition: template
+            value_template: "{{ source_num | int != 3 }}"
+        then:
+          - action: script.nad_clear_rds
+
+  # --- Set preset when input_number changes ---
+  - id: nad_set_preset_from_input
+    alias: "NAD Set Preset from Input"
+    triggers:
+      - trigger: state
+        entity_id: input_number.nad_current_preset
+    conditions:
+      - condition: template
+        value_template: "{{ trigger.from_state.state != trigger.to_state.state }}"
+      - condition: state
+        entity_id: input_boolean.nad_syncing
+        state: "off"
+      - condition: template
+        value_template: "{{ trigger.to_state.state | int(0) > 0 }}"
+    actions:
+      - action: script.nad_clear_rds
+      - action: rest_command.nad_set_preset
+        response_variable: rest_result
+        data:
+          preset: "{{ states('input_number.nad_current_preset') | int }}"
+      - variables:
+          response_text: "{{ rest_result.content.response }}"
+      - variables:
+          freq_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Frequency=') | first | default('Tuner.FM.Frequency=0') }}"
+          mute_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Mute=') | first | default('Tuner.FM.Mute=Off') }}"
+          blend_line: "{{ response_text.split('\\r') | select('match', 'Tuner.FM.Blend=') | first | default('Tuner.FM.Blend=Off') }}"
+      - variables:
+          freq_val: "{{ freq_line.split('=') | last }}"
+          mute_val: "{{ mute_line.split('=') | last }}"
+          blend_val: "{{ blend_line.split('=') | last }}"
+      - action: automation.turn_off
+        target:
+          entity_id: automation.nad_set_frequency_from_input
+        data:
+          stop_actions: false
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.nad_tuner_frequency
+        data:
+          value: "{{ freq_val }}"
+      - action: automation.turn_on
+        target:
+          entity_id: automation.nad_set_frequency_from_input
+      - action: "input_boolean.turn_{{ 'on' if mute_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_fm_mute
+      - action: "input_boolean.turn_{{ 'on' if blend_val == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_blend
+      - action: script.turn_on
+        target:
+          entity_id: script.nad_deferred_tuner_update
+
+  # --- Periodic Poll (every 30s — power only when off, full refresh when on) ---
+  - id: nad_periodic_poll
+    alias: "NAD Periodic Poll"
+    triggers:
+      - trigger: time_pattern
+        seconds: "/30"
+    conditions:
+      - condition: state
+        entity_id: input_boolean.nad_polling_enabled
+        state: "on"
+      - condition: state
+        entity_id: input_boolean.nad_syncing
+        state: "off"
+    actions:
+      - action: rest_command.nad_query_power
+        response_variable: rest_result
+      - variables:
+          nad_value: "{{ rest_result.content.response.split('=') | last }}"
+      - action: "input_boolean.turn_{{ 'on' if nad_value == 'On' else 'off' }}"
+        target:
+          entity_id: input_boolean.nad_power
+      - if:
+          - condition: template
+            value_template: "{{ nad_value == 'On' }}"
+        then:
+          - action: script.nad_refresh_all_states
+
+# -----------------------------------------------------------------------------
+# Template — Blend Button
+# -----------------------------------------------------------------------------
+
+template:
+  - button:
+      - name: "NAD Blend Toggle"
+        unique_id: nad_blend_toggle
+        icon: mdi:tune-vertical
+        press:
+          - action: script.nad_toggle_blend

@@ -12,7 +12,7 @@ import (
 
 const (
 	baudRate    = 115200
-	readTimeout = 2 * time.Second
+	readTimeout = 50 * time.Millisecond
 )
 
 var (
@@ -116,36 +116,6 @@ func readResponse() (string, error) {
 
 	// Trim CR/LF from response
 	return strings.TrimSpace(result.String()), nil
-}
-
-// SendCommandNoWait sends a command to the serial port without reading the response.
-// Used for fire-and-forget commands like volume control where speed matters.
-func SendCommandNoWait(command string) {
-	serialMu.Lock()
-	defer serialMu.Unlock()
-
-	if serialPort == nil {
-		if err := openPort(); err != nil {
-			log.Printf("SendCommandNoWait: failed to open port: %v", err)
-			return
-		}
-	}
-
-	fullCmd := "\r" + command + "\r"
-	log.Printf("TX (nowait): %q", fullCmd)
-
-	_, err := serialPort.Write([]byte(fullCmd))
-	if err != nil {
-		log.Printf("SendCommandNoWait: write failed, attempting reconnect: %v", err)
-		if reconnErr := openPort(); reconnErr != nil {
-			log.Printf("SendCommandNoWait: reconnect failed: %v", reconnErr)
-			return
-		}
-		_, err = serialPort.Write([]byte(fullCmd))
-		if err != nil {
-			log.Printf("SendCommandNoWait: write failed after reconnect: %v", err)
-		}
-	}
 }
 
 // IsPortOpen returns whether the serial port is currently open.

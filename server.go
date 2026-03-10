@@ -11,7 +11,7 @@ import (
 )
 
 const defaultSerialPort = "/dev/cu.PL2303G-USBtoUART2140"
-const defaultHTTPPort = "8080"
+const defaultHTTPPort = "8099"
 
 type ControlResponse struct {
 	Command  string `json:"command"`
@@ -88,19 +88,7 @@ func handleControl(w http.ResponseWriter, r *http.Request) {
 
 	// Build the RS232 command string
 	command := cmd + op + value
-	nowait := r.URL.Query().Get("nowait")
-	log.Printf("Executing: %s (nowait=%s)", command, nowait)
-
-	// Fire-and-forget mode: return immediately without waiting for serial response
-	if nowait == "true" || nowait == "1" {
-		go SendCommandNoWait(command)
-		resp := ControlResponse{
-			Command:  command,
-			Response: "ok (nowait)",
-		}
-		writeJSON(w, http.StatusOK, resp)
-		return
-	}
+	log.Printf("Executing: %s", command)
 
 	response, err := SendCommand(command)
 
